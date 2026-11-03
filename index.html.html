@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>เดชบอร์ดการเงินมูลนิธิอัลบารอกะฮ์ (Realtime)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f5;--card:#fff;--ink:#15262c;--mute:#5d6f75;--line:#d9e2e0;--pri:#0b6e5f;--pri2:#bfe3da;--warn:#c4801a;--bad:#b3392f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0f1a1d;--card:#16262b;--ink:#e6efed;--mute:#9bb0b3;--line:#2a3d42;--pri:#3fc0a8;--pri2:#1e4a44;--warn:#e0a54a;--bad:#e5776d}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0f1a1d;--card:#16262b;--ink:#e6efed;--mute:#9bb0b3;--line:#2a3d42;--pri:#3fc0a8;--pri2:#1e4a44;--warn:#e0a54a;--bad:#e5776d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif;line-height:1.55}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.25rem;margin:0 0 2px}
+.sub{color:var(--mute);font-size:.85rem;margin:0 0 18px}
+h2{font-size:1rem;margin:28px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.hero .big{font-size:clamp(2rem,8vw,3.2rem);font-weight:700;color:var(--pri);line-height:1.1}
+.lbl{color:var(--mute);font-size:.85rem}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--pri2);margin:12px 0 6px}
+.bar i{display:block;background:var(--pri)}
+.row{display:flex;justify-content:space-between;gap:12px;font-size:.88rem;color:var(--mute);flex-wrap:wrap}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.num{font-size:1.35rem;font-weight:700}
+.bank div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}
+.bank div:last-child{border:0}
+.chart{display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:8px}
+.chart .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.chart .c b{display:block;width:100%;max-width:44px;background:var(--pri);border-radius:4px 4px 0 0;min-height:2px}
+.chart .c span{font-size:.7rem;color:var(--mute);margin-top:4px;white-space:nowrap}
+.chart .c em{font-style:normal;font-size:.68rem;margin-bottom:2px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+tr.t td{font-weight:700;border-top:2px solid var(--line)}
+.wrap{overflow-x:auto}
+.ok{color:var(--pri)}.note{font-size:.8rem;color:var(--mute);margin-top:10px}
+.warn{color:var(--warn)}.bad{color:var(--bad)}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+button{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:.9rem;cursor:pointer}
+button:disabled{opacity:.6;cursor:not-allowed}
+.status{font-size:.85rem;color:var(--mute)}
+.loading{opacity:.55;pointer-events:none}
+.error-box{background:#fdecea;border:1px solid #f5c2c0;color:#b3392f;padding:12px 14px;border-radius:8px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<main>
+<div class="toolbar">
+  <button id="btnRefresh">↻ รีเฟรชข้อมูล</button>
+  <span class="status" id="status">กำลังโหลด...</span>
+</div>
+<div class="error-box" id="errBox"></div>
+
+<h1>เดชบอร์ดการเงิน มูลนิธิอัลบารอกะฮ์</h1>
+<p class="sub">ข้อมูลจากชีตสรุป · ดึงแบบเรียลไทม์ · หน่วยเป็นบาท</p>
+
+<section class="card hero">
+  <div class="lbl">ยอดคงเหลือ</div>
+  <div class="big" id="bal">—</div>
+  <div class="bar"><i id="usedbar" style="width:0%"></i></div>
+  <div class="row"><span>เงินเข้าทั้งหมด <b id="inc">—</b></span><span>รายจ่ายทั้งหมด <b id="exp">—</b></span></div>
+</section>
+
+<h2>บัญชีเงินสดและธนาคาร</h2>
+<div class="card bank" id="bank"></div>
+
+<h2>ค่าดำเนินการ</h2>
+<div class="grid">
+  <div class="card"><div class="lbl">ทั้งหมด</div><div class="num" id="op1">—</div></div>
+  <div class="card"><div class="lbl">ใช้ไป</div><div class="num" id="op2">—</div><div class="bar"><i id="opbar" style="width:0%"></i></div><div class="lbl" id="oppct"></div></div>
+  <div class="card"><div class="lbl">คงเหลือ</div><div class="num" id="op3">—</div></div>
+</div>
+
+<h2>เงินโครงการ</h2>
+<div class="card wrap"><table id="proj"></table>
+<div class="note">คงเหลือคำนวณจากรายรับ ลบ รายจ่าย</div></div>
+
+<h2>รายจ่ายโครงการรายเดือน</h2>
+<div class="card"><div class="chart" id="c1"></div></div>
+
+<h2>ค่าดำเนินการรายเดือน</h2>
+<div class="card"><div class="chart" id="c2"></div></div>
+
+<h2>รายจ่ายโครงการแยกหมวดหมู่ (รวม)</h2>
+<div class="card wrap"><table id="t1"></table></div>
+
+<h2>ค่าดำเนินการแยกหมวดหมู่ (รวม)</h2>
+<div class="card wrap"><table id="t2"></table>
+<div class="note" id="noteBottom"></div></div>
+</main>
+<script>
+(function(){
+  const SHEET_ID = '1Arjhl0Vkjle2TzwfBV1OBoHnnIlDjBO_fq3zBntqE_o';
+  const GID = '736923342';
+
+  const $ = id => document.getElementById(id);
+  const f = n => Number(n).toLocaleString('th-TH', {maximumFractionDigits: 2});
+
+  function parseNum(s) {
+    if (s == null) return 0;
+    s = String(s).trim();
+    if (!s || s === '-' || s === '—' || s === '') return 0;
+    const cleaned = s.replace(/,/g, '').replace(/\s/g, '').replace(/[^\d.\-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // แปลง object จาก gviz เป็น array 2 มิติ
+  function parseGvizTable(table) {
+    const numCols = table.cols.length;
+    const rows = [];
+    table.rows.forEach(r => {
+      const row = new Array(numCols).fill('');
+      if (r.c) {
+        r.c.forEach((cell, i) => {
+          if (cell) {
+            row[i] = (cell.f !== undefined && cell.f !== null) ? cell.f : (cell.v !== null && cell.v !== undefined ? cell.v : '');
+          }
+        });
+      }
+      rows.push(row);
+    });
+    return rows;
+  }
+
+  function cell(rows, r, c) {
+    if (!rows[r] || rows[r][c] === undefined) return '';
+    return rows[r][c];
+  }
+
+  function chart(id, labels, vals) {
+    const m = Math.max.apply(null, vals.concat([1]));
+    $(id).innerHTML = vals.map((v, i) => {
+      const h = (v / m * 78);
+      return `<div class="c"><em>${v ? f(Math.round(v/1000))+'k' : ''}</em><b style="height:${h}%"></b><span>${labels[i]}</span></div>`;
+    }).join('');
+  }
+
+  function tbl(id, rows, header) {
+    $(id).innerHTML = `<tr><th>${header}</th><th>รวม</th></tr>` +
+      rows.map((r, i) => {
+        const isTotal = i === rows.length - 1;
+        return `<tr${isTotal ? ' class="t"' : ''}><td>${r[0]}</td><td>${f(r[1])}</td></tr>`;
+      }).join('');
+  }
+
+  // โหลดข้อมูลด้วย JSONP (ไม่ติด CORS แม้เปิดจากไฟล์ในเครื่อง)
+  function loadData() {
+    const btn = $('btnRefresh');
+    const status = $('status');
+    const errBox = $('errBox');
+    btn.disabled = true;
+    status.textContent = 'กำลังโหลดข้อมูลจากชีต...';
+    errBox.style.display = 'none';
+    document.querySelector('main').classList.add('loading');
+
+    // ลบ script เก่าถ้ามี
+    const old = document.getElementById('gviz-script');
+    if (old) old.remove();
+
+    const callbackName = 'gvizCallback_' + Date.now();
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${callbackName}&gid=${GID}&_t=` + Date.now();
+
+    // สร้าง callback ชั่วคราว
+    window[callbackName] = function(json) {
+      try {
+        if (!json || json.status !== 'ok') {
+          throw new Error('ชีตตอบกลับผิดพลาด');
+        }
+        const rows = parseGvizTable(json.table);
+        renderDashboard(rows);
+        const now = new Date();
+        status.textContent = 'อัปเดตเมื่อ ' + now.toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'});
+      } catch (e) {
+        console.error(e);
+        errBox.style.display = 'block';
+        errBox.innerHTML = '<b>โหลดข้อมูลไม่สำเร็จ</b><br>' + e.message +
+          '<br><br>ตรวจสอบว่าชีตแชร์เป็น <b>Anyone with the link</b> (Viewer)';
+        status.textContent = 'เกิดข้อผิดพลาด';
+      } finally {
+        btn.disabled = false;
+        document.querySelector('main').classList.remove('loading');
+        delete window[callbackName];
+        const s = document.getElementById('gviz-script');
+        if (s) s.remove();
+      }
+    };
+
+    // โหลดด้วย script tag (JSONP)
+    const script = document.createElement('script');
+    script.id = 'gviz-script';
+    script.src = url;
+    script.onerror = function() {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '<b>โหลดข้อมูลไม่สำเร็จ</b><br>ไม่สามารถเชื่อมต่อชีตได้<br><br>ตรวจสอบว่าชีตแชร์เป็น <b>Anyone with the link</b> (Viewer)';
+      status.textContent = 'เกิดข้อผิดพลาด';
+      btn.disabled = false;
+      document.querySelector('main').classList.remove('loading');
+      delete window[callbackName];
+    };
+    document.body.appendChild(script);
+  }
+
+  function renderDashboard(rows) {
+
+      // ===== ดึงค่าหลัก (ตำแหน่งตาม gviz ซึ่งข้ามแถวว่าง) =====
+      const inc   = parseNum(cell(rows, 1, 1));
+      const exp   = parseNum(cell(rows, 1, 12));
+      const bal   = parseNum(cell(rows, 1, 21));
+
+      const bankKT   = parseNum(cell(rows, 0, 27));
+      const bankIS   = parseNum(cell(rows, 2, 27));
+      const bankCash = parseNum(cell(rows, 4, 27));
+      const bankSum  = parseNum(cell(rows, 6, 27));
+      const bankDiff = parseNum(cell(rows, 6, 29));
+
+      const opTotal  = parseNum(cell(rows, 11, 1));
+      const opUsed   = parseNum(cell(rows, 11, 8));
+      const opRemain = parseNum(cell(rows, 11, 13));
+
+      // เงินโครงการ
+      const pBuyIn  = parseNum(cell(rows, 11, 19));
+      const pBuyEx  = parseNum(cell(rows, 11, 23));
+      const pHelpIn = parseNum(cell(rows, 12, 19));
+      const pHelpEx = parseNum(cell(rows, 12, 23));
+      const pTotIn  = parseNum(cell(rows, 13, 19));
+      const pTotEx  = parseNum(cell(rows, 13, 23));
+
+      // ===== แสดงผล =====
+      $('bal').textContent = f(bal);
+      $('inc').textContent = f(inc);
+      $('exp').textContent = f(exp);
+      $('usedbar').style.width = (inc > 0 ? (exp / inc * 100) : 0) + '%';
+
+      const diffClass = bankDiff !== 0 ? 'warn' : 'ok';
+      $('bank').innerHTML = [
+        ['ธนาคารกรุงไทย', bankKT],
+        ['ธนาคารอิสลาม', bankIS],
+        ['เงินสด', bankCash],
+        ['รวมทุกบัญชี', bankSum]
+      ].map(r => `<div><span>${r[0]}</span><b>${f(r[1])}</b></div>`).join('') +
+        `<div><span class="${diffClass}">ผลต่างกับยอดคงเหลือ</span><b class="${diffClass}">${f(bankDiff)}</b></div>`;
+
+      $('op1').textContent = f(opTotal);
+      $('op2').textContent = f(opUsed);
+      $('op3').textContent = f(opRemain);
+      const opPct = opTotal > 0 ? (opUsed / opTotal * 100) : 0;
+      $('opbar').style.width = Math.min(opPct, 100) + '%';
+      $('oppct').textContent = 'ใช้ไป ' + opPct.toFixed(1) + '% ของทั้งหมด';
+
+      const P = [
+        ['จัดซื้อโครงการ', pBuyIn, pBuyEx],
+        ['เงินช่วยเหลือ', pHelpIn, pHelpEx],
+        ['รวม', pTotIn, pTotEx]
+      ];
+      $('proj').innerHTML = '<tr><th>รายการ</th><th>รายรับ</th><th>รายจ่าย</th><th>คงเหลือ</th></tr>' +
+        P.map((r, i) => `<tr${i===2?' class="t"':''}><td>${r[0]}</td><td>${f(r[1])}</td><td>${f(r[2])}</td><td>${f(r[1]-r[2])}</td></tr>`).join('');
+
+      // ===== กราฟรายเดือน (พ.ค.–ธ.ค.) =====
+      // จาก gviz: แถวรวมอยู่ที่ row 28
+      // col7=พ.ค. ... col14=ธ.ค. (ค่าดำเนินการ)
+      const monthLabels = ['พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      const opMonthly = [];
+      for (let c = 7; c <= 14; c++) opMonthly.push(parseNum(cell(rows, 28, c)));
+
+      // ฝั่งโครงการ (col 23 เป็นต้น)
+      const projMonthly = [];
+      for (let c = 23; c <= 30; c++) projMonthly.push(parseNum(cell(rows, 28, c)));
+
+      chart('c1', monthLabels, projMonthly);
+      chart('c2', monthLabels, opMonthly);
+
+      // ===== ตารางหมวดหมู่ =====
+      // จาก gviz: หมวดหมู่เริ่มที่ row 15, รวมที่ row 28
+      const opCats = [];
+      const projCats = [];
+      for (let r = 15; r <= 27; r++) {
+        const nameL = String(cell(rows, r, 1) || '').trim();
+        const totL  = parseNum(cell(rows, r, 15));
+        if (nameL && nameL !== 'หมวดหมู่') {
+          opCats.push([nameL, totL]);
+        }
+        const nameR = String(cell(rows, r, 17) || '').trim();
+        const totR  = parseNum(cell(rows, r, 31));
+        if (nameR && nameR !== 'หมวดหมู่' && nameR !== 'รวม') {
+          projCats.push([nameR, totR]);
+        }
+      }
+      // เพิ่มแถวรวม
+      opCats.push(['รวม', parseNum(cell(rows, 28, 15))]);
+      projCats.push(['รวม', parseNum(cell(rows, 28, 31)) || pTotEx]);
+
+      tbl('t1', projCats, 'หมวดหมู่');
+      tbl('t2', opCats, 'หมวดหมู่');
+
+      // หมายเหตุกำไร (row 27)
+      const profit = parseNum(cell(rows, 27, 15));
+      $('noteBottom').innerHTML = `กำไรจากการจัดซื้อที่ถอนแล้ว <b class="ok">${f(profit)}</b> บาท · ข้อมูลอัปเดตล่าสุดเมื่อโหลดหน้านี้`;
+  }
+
+  $('btnRefresh').addEventListener('click', loadData);
+  loadData();
+
+  // รีเฟรชอัตโนมัติทุก 5 นาที
+  setInterval(loadData, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
